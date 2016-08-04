@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+# Quick and Dirty Time Tracker Gnome Indicator
+# License : MIT
+# Homepage : https://github.com/rootzer0/gtimetracker
+# Author : Pablo Guerino <pablo.guerino@jadelabs.net>
+
+import signal
+from urllib2 import Request, urlopen, URLError
+import gi
+gi.require_version("Gtk", "3.0")
+gi.require_version('AppIndicator3', '0.1')
+gi.require_version('Notify', '0.7')
+from gi.repository import Gtk as gtk
+from gi.repository import AppIndicator3 as appindicator
+from gi.repository import Notify as notify
+from datetime import datetime, time, timedelta
+
+class Icons:
+    Idle = 'stock-alarm'
+    Start = 'appointment'
+    Stop = 'player_pause'
+    Pause = 'player_pause'
+
+class ContextMenu:
+    items = gtk.Menu()
+    count = ''
+    start = ''
+    stop = ''
+    quit = ''
+
+class TimeTracker:
+    indicator = ''
+    APPINDICATOR_ID = 'timetracker-indicator'
+    startTime = -1
+    endTime = -1
+    running = False
+    item_count = ''
+    menu = ContextMenu()
+
+    def __init__(self):
+        self.indicator = appindicator.Indicator.new(self.APPINDICATOR_ID, 'timetracker-indicator', appindicator.IndicatorCategory.SYSTEM_SERVICES)
+        self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
+        self.createMenu()
+        self.setIcon(Icons.Idle)
+        notify.init(self.APPINDICATOR_ID)
+        gtk.main()
+
+    def setState(self):
+        if (self.running):
+            self.menu.count.set_label('Count')
+        else:
+            self.menu.count.set_label('Show Last')
+
+        if (self.startTime == -1):
+            self.menu.count.set_sensitive(False)
+        else:
+            self.menu.count.set_sensitive(True)
+
+        self.menu.start.set_sensitive(not self.running)
+        self.menu.stop.set_sensitive(self.running)
+
+    def createMenu(self):
+        self.menu.count = gtk.MenuItem('Count')
+        self.menu.count.connect('activate', self.callbackCount)
+        self.menu.items.append(self.menu.count)
+
+        item_separator = gtk.SeparatorMenuItem()
+        self.menu.items.append(item_separator)
+
+        self.menu.start = gtk.MenuItem('Start')
+        self.menu.start.connect('activate', self.callbackStart)
+        self.menu.items.append(self.menu.start)
+
+        self.menu.stop = gtk.MenuItem('Stop')
+        self.menu.stop.connect('activate', self.callbackStop)
+        self.menu.items.append(self.menu.stop)
+
+        item_separator2 = gtk.SeparatorMenuItem()
+        self.menu.items.append(item_separator2)
+
+        self.menu.quit = gtk.MenuItem('Quit')
+        self.menu.quit.connect('activate', self.quit)
+        self.menu.items.append(self.menu.quit)
+
+        self.menu.items.show_all()
+        self.setState()
+        self.indicator.set_menu(self.menu.items)
+
+    def setIcon(self,icon):
+        self.indicator.set_icon(icon)
+
+    def callbackStart(self,_):
+        self.notify('Counting ...')
+        self.setIcon(Icons.Start)
+        self.startTime = datetime.now()
+        self.endTime = 0
+        self.running = True
+        self.setState()
+
+    def callbackStop(self,_):
+        self.notify('Elapsed: ' + self.count())
+        self.setIcon(Icons.Stop)
+        self.endTime = datetime.now()
+        self.running = False
+        self.setState()
+
+    def callbackCount(self,_):
+        self.notify('Elapsed: ' + self.count())
+
+    def notify(self,message):
+        notify.Notification.new("Time Tracker", message, 'dialog_information').show()
+
+    def count(self):
+        if (self.startTime == -1):
+            return 'not started'
+
+        now = datetime.now()
+        if (self.running):
+            diff = now - self.startTime
+        else:
+            diff = self.endTime - self.startTime
+
+        return self.formatTime(diff.seconds)
+
+    def formatTime(self, elapsed):
+        seconds = timedelta(seconds=int(elapsed))
+        d = datetime(1,1,1) + seconds
+
+        if (d.hour == 0):
+            return "%d minutes" % (d.minute)
+        else:
+            return "%d hours %d minutes" % (d.hour, d.minute)
+
+    def quit(self,_):
+        notify.uninit()
+        gtk.main_quit()
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    tracker = TimeTracker()
