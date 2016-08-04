@@ -1,8 +1,8 @@
 # gtimetracker
 
-Quick and dirty attemp for a Time Tracker Indicator for Gnome/Unity
+Quick and dirty attempt for a Time Tracker Indicator for Gnome/Unity
 
-## Requeriments
+## Requirements
 
 * Python 2+
 
