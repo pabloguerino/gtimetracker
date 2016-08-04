@@ -34,7 +34,6 @@ class TimeTracker:
     startTime = -1
     endTime = -1
     running = False
-    item_count = ''
     menu = ContextMenu()
 
     def __init__(self):
